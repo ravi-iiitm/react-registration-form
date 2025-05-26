@@ -1,8 +1,8 @@
 // src/components/RegistrationForm.jsx
-// FINAL VERSION WITH FILE UPLOADS
+// FINAL VERSION: Includes file uploads and detailed success page
 
 import { useState } from 'react';
-import { supabase } from '../supabaseClient'; // Ensure this path is correct
+import { supabase } from '../supabaseClient'; // Ensure this path is correct and supabaseClient.js is set up
 
 function RegistrationForm() {
   const [formData, setFormData] = useState({
@@ -19,12 +19,12 @@ function RegistrationForm() {
   });
   const [errors, setErrors] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submittedValues, setSubmittedValues] = useState(null); // To store data for the success page
 
-  // CORRECTED: This handleChange now properly handles file inputs
   const handleChange = (event) => {
     const { name, value, type, checked, files } = event.target;
     if (type === 'file') {
-      setFormData(prev => ({ ...prev, [name]: files[0] })); // Get the first (and only) file
+      setFormData(prev => ({ ...prev, [name]: files[0] }));
     } else {
       setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     }
@@ -46,12 +46,12 @@ function RegistrationForm() {
     if (!formData.gender) newErrors.gender = 'Gender is required.';
     if (!formData.jobRole) newErrors.jobRole = 'Please select a job role.';
     if (!formData.terms) newErrors.terms = 'You must agree to the terms.';
-    // Add validation for file types or sizes here if desired
-    // Example: if (formData.cvFile && formData.cvFile.size > 5 * 1024 * 1024) newErrors.cvFile = 'CV too large (max 5MB)';
+    // Optional: Add validation for file types or sizes here
+    // if (formData.cvFile && formData.cvFile.type !== 'application/pdf') newErrors.cvFile = 'CV must be a PDF.';
+    // if (formData.headshotFile && !formData.headshotFile.type.startsWith('image/')) newErrors.headshotFile = 'Headshot must be an image.';
     return newErrors;
   };
 
-  // UPDATED: handleSubmit now includes file upload logic
   const handleSubmit = async (event) => {
     event.preventDefault();
     const validationErrors = validate();
@@ -63,18 +63,16 @@ function RegistrationForm() {
       let cvStorageUrl = null;
       let headshotStorageUrl = null;
 
-      // 1. Upload CV if a file is present
+      // 1. Upload CV if present
       if (formData.cvFile) {
         const cvFilePath = `public/cvs/${Date.now()}-${formData.cvFile.name}`;
         try {
           const { data: cvUploadData, error: cvUploadError } = await supabase
             .storage
-            .from('cv-uploads') // Your CV bucket name
+            .from('cv-uploads')
             .upload(cvFilePath, formData.cvFile);
 
-          if (cvUploadError) {
-            throw cvUploadError; 
-          }
+          if (cvUploadError) throw cvUploadError;
           const { data: { publicUrl } } = supabase.storage.from('cv-uploads').getPublicUrl(cvFilePath);
           cvStorageUrl = publicUrl;
           console.log('CV uploaded successfully, URL:', cvStorageUrl);
@@ -86,18 +84,16 @@ function RegistrationForm() {
         }
       }
 
-      // 2. Upload Headshot if a file is present
+      // 2. Upload Headshot if present
       if (formData.headshotFile) {
         const headshotFilePath = `public/headshots/${Date.now()}-${formData.headshotFile.name}`;
         try {
           const { data: headshotUploadData, error: headshotUploadError } = await supabase
             .storage
-            .from('headshot-uploads') // Your headshot bucket name
+            .from('headshot-uploads')
             .upload(headshotFilePath, formData.headshotFile);
 
-          if (headshotUploadError) {
-            throw headshotUploadError;
-          }
+          if (headshotUploadError) throw headshotUploadError;
           const { data: { publicUrl } } = supabase.storage.from('headshot-uploads').getPublicUrl(headshotFilePath);
           headshotStorageUrl = publicUrl;
           console.log('Headshot uploaded successfully, URL:', headshotStorageUrl);
@@ -129,7 +125,7 @@ function RegistrationForm() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            // Your Supabase anon key - ensure this is correct
+            // IMPORTANT: Replace with your actual Supabase Anon Key
             'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlZmJnbGNvYm9ieGlxemh0c3hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgyMzgzNTksImV4cCI6MjA2MzgxNDM1OX0.GJygwb8W9Tfk0hyK2Gw3h-OZ7Zkzc5BCeZqo7uwnUe4',
             'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlZmJnbGNvYm9ieGlxemh0c3hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgyMzgzNTksImV4cCI6MjA2MzgxNDM1OX0.GJygwb8W9Tfk0hyK2Gw3h-OZ7Zkzc5BCeZqo7uwnUe4',
           },
@@ -142,10 +138,11 @@ function RegistrationForm() {
         }
         
         console.log('Form data submitted successfully to database!');
+        setSubmittedValues(dataToSubmitToTable); // Store the submitted data for the success page
         setIsSubmitted(true); 
 
       } catch (tableError) {
-        console.error('Database submission failed:::::::::::::', tableError); // User's original log
+        console.error('Database submission failed:', tableError);
         alert('Form data submission failed. Please check the console for details.');
       }
     } else {
@@ -153,32 +150,68 @@ function RegistrationForm() {
     }
   };
 
-  if (isSubmitted) {
+  if (isSubmitted && submittedValues) {
     return (
-      <div className="success-message">
-        <h2>Thank You For Registering, {formData.fullName}!</h2>
-        <p>A confirmation has been sent to your email address at {formData.email}.</p>
+      <div className="success-message" style={{ textAlign: 'left', padding: '20px', border: '1px solid #28a745', borderRadius: '8px' }}>
+        <h2 style={{ textAlign: 'center' }}>Thank You For Registering, {submittedValues.fullName}!</h2>
+        <p style={{ textAlign: 'center' }}>A confirmation has been sent to your email address at {submittedValues.email}.</p>
+        <hr style={{ margin: '20px 0' }} />
+        <h4>Here are the details you submitted:</h4>
+        <p><strong>Full Name:</strong> {submittedValues.fullName}</p>
+        <p><strong>Email:</strong> {submittedValues.email}</p>
+        <p><strong>Age:</strong> {submittedValues.age}</p>
+        <p><strong>Gender:</strong> {submittedValues.gender}</p>
+        <p><strong>Job Role:</strong> {submittedValues.jobRole}</p>
+        <p><strong>Company:</strong> {submittedValues.company || 'N/A'}</p>
+        <p><strong>Comments:</strong> {submittedValues.comments || 'N/A'}</p>
+        
+        {submittedValues.cv_url && (
+          <p>
+            <strong>CV Submitted:</strong> 
+            <a href={submittedValues.cv_url} target="_blank" rel="noopener noreferrer" style={{ color: '#d92231' }}>
+              {/* Attempt to show just filename after the last '-' from Date.now() prefix */}
+              View CV ({submittedValues.cv_url.substring(submittedValues.cv_url.lastIndexOf('/') + 1).substring(submittedValues.cv_url.substring(submittedValues.cv_url.lastIndexOf('/') + 1).indexOf('-') + 1)})
+            </a>
+          </p>
+        )}
+        {submittedValues.headshot_url && (
+          <p>
+            <strong>Headshot Submitted:</strong> 
+            <a href={submittedValues.headshot_url} target="_blank" rel="noopener noreferrer" style={{ color: '#d92231' }}>
+              View Headshot ({submittedValues.headshot_url.substring(submittedValues.headshot_url.lastIndexOf('/') + 1).substring(submittedValues.headshot_url.substring(submittedValues.headshot_url.lastIndexOf('/') + 1).indexOf('-') + 1)})
+            </a>
+          </p>
+        )}
+        
+        <p><strong>Agreed to Terms:</strong> {submittedValues.terms ? 'Yes' : 'No'}</p>
       </div>
     );
   }
 
   return (
     <form onSubmit={handleSubmit} noValidate>
+      {/* Full Name */}
       <div className="form-group">
         <label htmlFor="fullName">Full Name:</label>
         <input type="text" id="fullName" name="fullName" value={formData.fullName} onChange={handleChange} />
         {errors.fullName && <div className="error-message">{errors.fullName}</div>}
       </div>
+
+      {/* Email */}
       <div className="form-group">
         <label htmlFor="email">Email Address:</label>
         <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} />
         {errors.email && <div className="error-message">{errors.email}</div>}
       </div>
+
+      {/* Age */}
       <div className="form-group">
         <label htmlFor="age">Age:</label>
         <input type="number" id="age" name="age" value={formData.age} onChange={handleChange} />
         {errors.age && <div className="error-message">{errors.age}</div>}
       </div>
+
+      {/* Gender */}
       <div className="form-group">
         <fieldset>
           <legend>Gender:</legend>
@@ -191,6 +224,8 @@ function RegistrationForm() {
         </fieldset>
         {errors.gender && <div className="error-message">{errors.gender}</div>}
       </div>
+
+      {/* Job Role */}
       <div className="form-group">
         <label htmlFor="jobRole">Job Role:</label>
         <select id="jobRole" name="jobRole" value={formData.jobRole} onChange={handleChange}>
@@ -203,13 +238,15 @@ function RegistrationForm() {
         </select>
         {errors.jobRole && <div className="error-message">{errors.jobRole}</div>}
       </div>
+
+      {/* Company */}
       <div className="form-group">
         <label htmlFor="company">Company:</label>
         <input list="companies" id="company" name="company" value={formData.company} onChange={handleChange} />
         <datalist id="companies">
-        <option value="Leonardo" />
-        <option value="VTC" />
-        <option value="Hensel Phelps" />
+          <option value="Leonardo" />
+          <option value="VTC" />
+          <option value="Hensel Phelps" />
           <option value="American Airlines" />
           <option value="Delta Air Lines" />
           <option value="United Airlines" />
@@ -244,15 +281,19 @@ function RegistrationForm() {
         {errors.headshotFile && <div className="error-message">{errors.headshotFile}</div>}
       </div>
 
+      {/* Comments */}
       <div className="form-group">
         <label htmlFor="comments">Comments or Questions:</label>
         <textarea id="comments" name="comments" rows="4" value={formData.comments} onChange={handleChange}></textarea>
       </div>
+      
+      {/* Terms and Conditions */}
       <div className="form-group checkbox-group">
         <input type="checkbox" id="terms" name="terms" checked={formData.terms} onChange={handleChange} />
         <label htmlFor="terms">I agree to the <a href="#" target="_blank" rel="noopener noreferrer">Terms and Conditions</a></label>
       </div>
       {errors.terms && <div className="error-message">{errors.terms}</div>}
+      
       <button type="submit">Register</button>
     </form>
   );
