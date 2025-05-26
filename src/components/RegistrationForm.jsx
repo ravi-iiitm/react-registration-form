@@ -41,20 +41,37 @@ function RegistrationForm() {
 
     if (Object.keys(validationErrors).length === 0) {
       console.log('Form is valid, submitting...');
+// FINAL FETCH BLOCK - PASTE YOUR COPIED CREDENTIALS HERE
+
       try {
-        const response = await fetch('https://jsonplaceholder.typicode.com/posts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
-        });
-        if (!response.ok) throw new Error('Network response was not ok');
+        const response = await fetch(
+          'https://qefbglcobobxiqzhtsxd.supabase.co/rest/v1/registrations', // <-- DOUBLE-CHECK THIS URL
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              // Paste your freshly copied ANON key here
+              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlZmJnbGNvYm9ieGlxemh0c3hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgyMzgzNTksImV4cCI6MjA2MzgxNDM1OX0.GJygwb8W9Tfk0hyK2Gw3h-OZ7Zkzc5BCeZqo7uwnUe4',
+              // Paste your key again here, prefixed with "Bearer "
+              'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlZmJnbGNvYm9ieGlxemh0c3hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgyMzgzNTksImV4cCI6MjA2MzgxNDM1OX0.GJygwb8W9Tfk0hyK2Gw3h-OZ7Zkzc5BCeZqo7uwnUe4',
+            },
+            body: JSON.stringify(formData),
+          }
+        );
+
+        if (!response.ok) {
+          // This will now give us a more detailed error if something is wrong
+          const errorData = await response.json();
+          throw new Error(JSON.stringify(errorData));
+        }
+
+        console.log('Submission successful!');
         setIsSubmitted(true);
+
       } catch (error) {
         console.error('Submission failed:', error);
-        alert('Submission failed. Please try again.');
+        alert('Submission failed. Please check the console for details.');
       }
-    }
-  };
 
   if (isSubmitted) {
     return (
