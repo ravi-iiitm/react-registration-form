@@ -58,7 +58,7 @@ function RegistrationForm() {
         
         setIsSubmitted(true);
       } catch (error) {
-        console.error('Submission failed:', error);
+        console.error('Submission failed:::::::::::::', error);
         alert('Submission failed. Please check the console for details.');
       }
     }
